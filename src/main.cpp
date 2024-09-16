@@ -1,10 +1,13 @@
 #include "main.h"
 #include "dlib/dlib.hpp"
+#include "pros/misc.h"
 
+// Robot Constructor
+// Initialize your robot inside of this constructor!
 struct Robot {
     dlib::Chassis chassis = dlib::Chassis(
-		nullptr,
-    	nullptr,
+		{1,2,3},
+    	{1,2,3},
     	1,
     	1
     );
@@ -41,19 +44,26 @@ struct Robot {
     }
 };
 
-void initialize() {
-	
-}
+// instantiate a Robot object
+Robot robot = Robot();
+
+// instantiate a Controller object
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+
+void initialize() {}
 
 void disabled() {}
 
 void competition_initialize() {}
 
 void autonomous() {
+    // Try some movements!
+    dlib::move_voltage(robot,127);
 }
 
-
-
 void opcontrol() {
-
+    // basic arcade using dLib
+    double power = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+    dlib::arcade(robot, power, turn);
 }
