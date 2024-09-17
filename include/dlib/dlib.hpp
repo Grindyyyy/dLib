@@ -8,28 +8,28 @@ namespace dlib {
 
 template<typename Robot>
 void brake_motors(Robot& robot)  {
-    robot.get_chassis().left->brake();
-    robot.get_chassis().right->brake();
+    robot.get_chassis().left.brake();
+    robot.get_chassis().right.brake();
 }
 
 template<typename Robot>
 void move_voltage(Robot& robot, std::int32_t power) {
-    robot.get_chassis().left->move(power);
-    robot.get_chassis().right->move(power);
+    robot.get_chassis().left.move(power);
+    robot.get_chassis().right.move(power);
 }
 
 // Turn at a given voltage
 template<typename Robot>
 void turn_voltage(Robot& robot, std::int32_t power) {
-    robot.get_chassis().left->move(-power);
-    robot.get_chassis().right->move(power);
+    robot.get_chassis().left.move(-power);
+    robot.get_chassis().right.move(power);
 }
 
 // Drive using the arcade scheme
 template<typename Robot>
 void arcade(Robot& robot, std::int8_t power, std::int8_t turn) {
-    robot.get_chassis().left->move(power + turn);
-    robot.get_chassis().right->move(power - turn);
+    robot.get_chassis().left.move(power + turn);
+    robot.get_chassis().right.move(power - turn);
 }
 
 // Constrain the angle to -180 to 180 for efficient turns
@@ -57,8 +57,8 @@ template<typename Robot>
 double get_motor_inches(Robot& robot) {
     double sum = 0;
 
-    auto left_positions = robot.get_chassis().left->get_position_all();
-    auto right_positions = robot.get_chassis().right->get_position_all();
+    auto left_positions = robot.get_chassis().left.get_position_all();
+    auto right_positions = robot.get_chassis().right.get_position_all();
 
     for(int i = 0; i < left_positions.size(); i++) {
         sum += left_positions.at(i);
