@@ -2,9 +2,28 @@
 #include "dlib/chassis.hpp"
 #include "dlib/pid.hpp"
 #include "dlib/odom.hpp"
+#include "pros/motors.h"
 #include <concepts>
 
 namespace dlib {
+
+template<typename Robot>
+void set_mode_brake(Robot& robot){
+    robot.get_chassis().left.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+    robot.get_chassis().right.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+}
+
+template<typename Robot>
+void set_mode_coast(Robot& robot){
+    robot.get_chassis().left.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+    robot.get_chassis().right.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+}
+
+template<typename Robot>
+void set_mode_hold(Robot& robot){
+    robot.get_chassis().left.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    robot.get_chassis().right.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+}
 
 template<typename Robot>
 void brake_motors(Robot& robot)  {
