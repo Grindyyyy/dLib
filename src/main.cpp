@@ -62,8 +62,12 @@ void autonomous() {
 }
 
 void opcontrol() {
-    // basic arcade using dLib
-    double power = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-    double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-    dlib::arcade(robot, power, turn);
+    while(true){
+        // basic arcade using dLib
+        double power = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        dlib::arcade(robot, power, turn);
+
+        pros::delay(20);
+    }
 }
