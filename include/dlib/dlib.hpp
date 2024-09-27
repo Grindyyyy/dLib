@@ -109,7 +109,7 @@ inline double angle_within_180(double degrees){
 template<typename Robot>
 double get_imu_heading(Robot& robot) {
     // Convert heading to counterclockwise
-    double ccw = std::fmod(360.0 - robot.get_imu().get_heading(), 360.0);
+    double ccw = std::fmod(360.0 - robot.get_imu().imu.get_heading(), 360.0);
     return angle_within_180(ccw);
 }
 
