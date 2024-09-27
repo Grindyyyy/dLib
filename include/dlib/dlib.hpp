@@ -7,9 +7,6 @@
 
 namespace dlib {
 
-bool odom_started = false;
-std::unique_ptr<pros::Task> odom_updater;
-
 template<typename Robot>
 void set_mode_brake(Robot& robot){
     robot.get_chassis().left.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
@@ -54,9 +51,9 @@ template<typename Robot>
 void start_odom(Robot& robot) {
     // Capture the current class instance and call update_odom in a seperate task
 
-    if (!odom_started) {
-        odom_updater = std::make_unique<pros::Task>([&] { update_odom(robot); });
-        odom_started = true;
+    if (!robot.get_odom().odom_started) {
+        robot.get_odom().odom_updater = std::make_unique<pros::Task>([&] { update_odom(robot); });
+        robot.get_odom().odom_started = true;
     }
 }
 
