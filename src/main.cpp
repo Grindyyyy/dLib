@@ -12,6 +12,10 @@ struct Robot {
     	1
     );
 
+    dlib::IMU imu = dlib::IMU(
+        15
+    );
+
     dlib::PID drive_pid = dlib::PID(
         {},
         1
@@ -31,6 +35,10 @@ struct Robot {
         return chassis;
     }
 
+    dlib::IMU& get_imu() {
+        return imu;
+    }
+
     dlib::PID& get_drive_pid() {
         return drive_pid;
     }
@@ -47,6 +55,9 @@ struct Robot {
 // instantiate a Robot object
 Robot robot = Robot();
 
+// instantiate a Position struct
+dlib::Position position = dlib::get_position(robot, false);
+
 // instantiate a Controller object
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 
@@ -59,14 +70,25 @@ void competition_initialize() {}
 void autonomous() {
     // Try some movements!
     dlib::move_voltage(robot,127);
+    pros::delay(500);
+    dlib::brake_motors(robot);
 }
 
 void opcontrol() {
     while(true){
+        // Update position struct
+        position = dlib::get_position(robot, false);
+
         // basic arcade using dLib
         double power = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         dlib::arcade(robot, power, turn);
+
+        // Update position on UI
+        pros::lcd::print(1, "X: %lf", position.x);
+        pros::lcd::print(2, "Y: %lf", position.y);
+        pros::lcd::print(3, "Theta: %lf", position.theta);
+        
 
         pros::delay(20);
     }

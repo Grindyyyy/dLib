@@ -3,6 +3,7 @@
 #include "dlib/pid.hpp"
 #include "dlib/odom.hpp"
 #include "pros/motors.h"
+#include "dlib/imu.hpp"
 #include <concepts>
 
 namespace dlib {
