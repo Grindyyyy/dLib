@@ -27,36 +27,20 @@ void set_mode_hold(Robot& robot){
 }
 
 template<typename Robot>
-void update_odom(Robot& robot){
-    while(true){
-        robot.get_odom().update(get_motor_inches(robot), get_imu_heading(robot) * (M_PI / 180.00)); 
-        pros::delay(10);
-    }
-}
-
-template<typename Robot>
 void calibrate(Robot& robot){
-    robot.get_chassis().left.set_gearing(pros::E_MOTOR_GEAR_BLUE);
-    robot.get_chassis().right.set_gearing(pros::E_MOTOR_GEAR_BLUE);
+    robot.get_chassis().left.set_gearing_all(pros::E_MOTOR_GEAR_BLUE);
+    robot.get_chassis().right.set_gearing_all(pros::E_MOTOR_GEAR_BLUE);
 
-    robot.get_chassis().left.set_encoder_units(pros::E_MOTOR_ENCODER_DEGREES);
-    robot.get_chassis().right.set_encoder_units(pros::E_MOTOR_ENCODER_DEGREES);
+    robot.get_chassis().left.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
+    robot.get_chassis().right.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
 
-    robot.get_chassis().left.tare_position();
-    robot.get_chassis().right.tare_position();
 
     robot.get_imu().imu.reset(true);
 }
 
-template<typename Robot>
-void start_odom(Robot& robot) {
-    // Capture the current class instance and call update_odom in a seperate task
 
-    if (!robot.get_odom().odom_started) {
-        robot.get_odom().odom_updater = std::make_unique<pros::Task>([&] { update_odom(robot); });
-        robot.get_odom().odom_started = true;
-    }
-}
+   // robot.get_chassis().left.tare_position_all();
+   // robot.get_chassis().right.tare_position_all();
 
 template<typename Robot>
 void tare_position(Robot& robot){
@@ -72,20 +56,15 @@ void brake_motors(Robot& robot)  {
 
 template<typename Robot>
 void move_voltage(Robot& robot, std::int32_t power) {
-    robot.get_chassis().left.move(power);
-    robot.get_chassis().right.move(power);
-}
-template<typename Robot>
-void move_voltage(Robot& robot, std::int32_t left_volts, std::int32_t right_volts) {
-    robot.get_chassis().left.move(left_volts);
-    robot.get_chassis().right.move(right_volts);
+    robot.get_chassis().left.move_voltage(power);
+    robot.get_chassis().right.move_voltage(power);
 }
 
 // Turn at a given voltage
 template<typename Robot>
 void turn_voltage(Robot& robot, std::int32_t power) {
-    robot.get_chassis().left.move(-power);
-    robot.get_chassis().right.move(power);
+    robot.get_chassis().left.move_voltage(-power);
+    robot.get_chassis().right.move_voltage(power);
 }
 
 // Drive using the arcade scheme
@@ -96,6 +75,7 @@ void arcade(Robot& robot, std::int8_t power, std::int8_t turn) {
 }
 
 // Constrain the angle to -180 to 180 for efficient turns
+
 inline double angle_within_180(double degrees){
     degrees = std::fmod(degrees, 360);
 
@@ -109,32 +89,103 @@ inline double angle_within_180(double degrees){
 // Get the current heading from -180 to 180 degrees
 template<typename Robot>
 double get_imu_heading(Robot& robot) {
-    // Convert heading to counterclockwise
-    double ccw = std::fmod(360.0 - robot.get_imu().imu.get_heading(), 360.0);
-    return angle_within_180(ccw);
+
+    double angle = std::fmod(robot.get_imu().imu.get_heading(), 360.0);
+    return angle;
+}
+
+template<typename Robot>
+double get_imu_rotation(Robot& robot) {
+    return robot.get_imu().imu.get_rotation();
+}
+
+inline double average(std::vector<double> values) {
+    double sum = 0;
+
+    for(auto value : values) {
+        sum += value;
+    }
+
+    return sum / values.size();
 }
 
 // Get the average inches the drivebase motors have moved
 template<typename Robot>
 double get_motor_inches(Robot& robot) {
-    double sum = 0;
+    auto diameter = robot.get_chassis().wheel_diameter;
+    auto rpm = robot.get_chassis().rpm;
 
+    std::vector<double> distances;
+
+    auto left_gearsets = robot.get_chassis().left.get_gearing_all();
     auto left_positions = robot.get_chassis().left.get_position_all();
+    
+    for(int i = 0; i < left_positions.size(); i++) {
+        double in;
+
+        switch (left_gearsets[i]) {
+            case pros::MotorGears::red: in = 100; break;
+            case pros::MotorGears::green: in = 200; break;
+            case pros::MotorGears::blue: in = 600; break;
+            default: in = 200; break;
+        }
+
+        distances.push_back(left_positions[i] * (diameter * M_PI) * (rpm / in));
+    }
+
+    auto right_gearsets = robot.get_chassis().right.get_gearing_all();
     auto right_positions = robot.get_chassis().right.get_position_all();
 
-    for(int i = 0; i < left_positions.size(); i++) {
-        sum += left_positions.at(i);
-    }
-
     for(int i = 0; i < right_positions.size(); i++) {
-        sum += right_positions.at(i);
+        double in;
+
+        switch (right_gearsets[i]) {
+            case pros::MotorGears::red: in = 100; break;
+            case pros::MotorGears::green: in = 200; break;
+            case pros::MotorGears::blue: in = 600; break;
+            default: in = 200; break;
+        }
+
+        distances.push_back(right_positions[i] * (diameter * M_PI) * (rpm / in));
     }
 
-    double degrees = sum / (left_positions.size() + right_positions.size());
-    double rotations = degrees / 360.0;
-    double inches = rotations * robot.get_chassis().wheel_diameter * robot.get_chassis().gear_ratio * M_PI;
-    return inches;
+    return average(distances);
 };
+
+template<typename Robot>
+void update_odom(Robot& robot){
+    while(true){
+        robot.get_odom().update(get_motor_inches(robot), get_imu_heading(robot) * (M_PI / 180.00)); 
+        pros::delay(10);
+    }
+}
+
+template<typename Robot>
+void update_odom_alt(Robot& robot){
+    while(true){
+        robot.get_odom().update(get_motor_inches(robot), get_imu_heading_absolute(robot) * (M_PI / 180.00)); 
+        pros::delay(10);
+    }
+}
+
+template<typename Robot>
+void start_odom_update_loop(Robot& robot) {
+    // Capture the current class instance and call update_odom in a seperate task
+    if (!robot.get_odom().odom_started) {
+        robot.get_odom().odom_updater = std::make_unique<pros::Task>([&] { update_odom(robot); });
+        robot.get_odom().odom_started = true;
+    }
+}
+
+
+template<typename Robot>
+void start_odom_update_loop_alt(Robot& robot) {
+    // Capture the current class instance and call update_odom in a seperate task
+    if (!robot.get_odom().odom_started) {
+        robot.get_odom().odom_updater = std::make_unique<pros::Task>([&] { update_odom(robot); });
+        robot.get_odom().odom_started = true;
+    }
+}
 
 template<typename Robot>
 void move_inches(Robot& robot, double inches, Options options) {
@@ -150,6 +201,7 @@ void move_inches(Robot& robot, double inches, Options options) {
     uint32_t settle_start = 0;
     
     while (true) {
+        
         uint32_t current_time = pros::millis();
 
         if (current_time - starting_time > options.max_ms) {
@@ -166,13 +218,25 @@ void move_inches(Robot& robot, double inches, Options options) {
                 if(current_time - settle_start > options.settle_ms) {
                     break;
                 }
-            } else {
+            } 
+            else {
                 is_settling = false;
             }
         }
 
         double current_inches = get_motor_inches(robot);
-        double output_voltage = robot.get_drive_pid().update(target_inches - current_inches);
+        double error = target_inches - current_inches;
+        double output_voltage = robot.get_drive_pid().update(error);
+        
+        if(std::abs(output_voltage) > options.max_voltage){
+            if(output_voltage > 0){
+                output_voltage = options.max_voltage;
+            }
+            else{
+                output_voltage = -options.max_voltage;
+            }
+        }
+        output_voltage += std::copysign(error, 900);
 
         move_voltage(robot, output_voltage);
 
@@ -184,29 +248,92 @@ void move_inches(Robot& robot, double inches, Options options) {
 
 // Turn to a given absolute angle using PID
 template<typename Robot>
-void turn_degrees(Robot& robot, double angle, Options options) {
-    long interval = robot.get_turn_pid().get_interval();
+void turn_degrees(Robot& robot, double angle, const Options options) {
+   long interval = robot.get_turn_pid().get_interval();
+
     double target_angle = angle;
+    robot.get_turn_pid().reset();
 
     uint32_t starting_time = pros::millis();
     
     bool is_settling = false;
     uint32_t settle_start = 0;
-
     while (true) {
+        
         uint32_t current_time = pros::millis();
-        uint32_t running_time = current_time - starting_time;
 
-        pros::lcd::print(6, "Time (ms): %lu", running_time);
         if (current_time - starting_time > options.max_ms) {
             break;
         }
 
         if (!is_settling && std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
             is_settling = true;
+
             settle_start = pros::millis();
         }
+
+        double current_angle = robot.get_imu().imu.get_heading();
+        double error = std::remainder(target_angle - current_angle,360);
+
+        if (is_settling) {
+            if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
+                if(current_time - settle_start > options.settle_ms) {
+                    break;
+                }
+            } 
+            else {
+                is_settling = false;
+            }
+        } 
+
+        double output_voltage = robot.get_turn_pid().update(error);
         
+        output_voltage += std::copysign(error, 2100);
+        if(output_voltage > options.max_voltage){
+            output_voltage = options.max_voltage;
+        }
+
+        
+
+        turn_voltage(robot, output_voltage);
+
+        pros::delay(interval);
+    }
+
+    brake_motors(robot);
+
+    double current_angle = robot.get_imu().imu.get_heading();
+
+}
+
+
+// Turn to a given absolute angle using PID
+template<typename Robot>
+void turn_degrees_alt(Robot& robot, double angle, const Options options) {
+   long interval = robot.get_turn_pid().get_interval();
+
+    double start_angle = dlib::get_imu_rotation(robot);
+    double target_angle = start_angle - std::fmod(start_angle, 360) + angle;
+    robot.get_turn_pid().reset();
+
+    uint32_t starting_time = pros::millis();
+    
+    bool is_settling = false;
+    uint32_t settle_start = 0;
+    while (true) {
+        
+        uint32_t current_time = pros::millis();
+
+        if (current_time - starting_time > options.max_ms) {
+            break;
+        }
+
+        if (!is_settling && std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
+            is_settling = true;
+
+            settle_start = pros::millis();
+        }
+
         if (is_settling) {
             if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
                 if(current_time - settle_start > options.settle_ms) {
@@ -215,17 +342,26 @@ void turn_degrees(Robot& robot, double angle, Options options) {
             } else {
                 is_settling = false;
             }
-        }
+        } 
 
-        double current_angle = get_imu_heading(robot);
-        double output_voltage = robot.get_turn_pid().update(std::remainder(target_angle - current_angle, 360));
+        double current_angle = dlib::get_imu_rotation(robot);
+        double error = std::remainder(target_angle - current_angle,360);
+
+        double output_voltage = robot.get_turn_pid().update(error);
+        
+        output_voltage += std::copysign(error, 2100);
+        if(output_voltage > options.max_voltage){
+            output_voltage = options.max_voltage;
+        }
 
         turn_voltage(robot, output_voltage);
 
         pros::delay(interval);
     }
 
-    brake(robot);
+    brake_motors(robot);
+
+    double current_angle = robot.get_imu().imu.get_heading();
 }
 
 template<typename Robot>
@@ -234,7 +370,7 @@ double angle_to(Robot& robot, double x, double y, bool reverse){
     double target_x = x;
     double target_y = y;
 
-    Position new_position = robot.get_odom().odom.get_position();
+    Position new_position = robot.get_odom().get_position();
     double current_x = new_position.x;
     double current_y = new_position.y;
 
@@ -254,7 +390,7 @@ double dist_to(Robot& robot, double x, double y, bool reverse){
     double target_x = x;
     double target_y = y;
 
-    Position new_position = robot.get_odom().odom.get_position();
+    Position new_position = robot.get_odom().get_position();
     double current_x = new_position.x;
     double current_y = new_position.y;
     
@@ -270,7 +406,7 @@ double dist_to(Robot& robot, double x, double y, bool reverse){
 // Get the robot's current x, y and theta
 template<typename Robot>
 Position get_position(Robot& robot, bool radians) {
-    Position position = robot.get_odom().odom.get_position();
+    Position position = robot.get_odom().get_position();
 
     if (!radians) {
         position.theta *= 180.0 / M_PI;
@@ -289,20 +425,19 @@ void set_position(Robot& robot, Position new_position, bool radians) {
     robot.get_odom().odom.set_position(new_position);
 }
 
-
 template<typename Robot>
 // Turn to a coordinate point using Odometry and PID
-void turn_to(Robot& robot, double x, double y, bool reverse){
+void turn_to(Robot& robot, double x, double y, bool reverse, Options options){
     double target_angle = angle_to(robot, x, y, reverse);
-    turn_degrees(robot, target_angle);
+    turn_degrees(robot, target_angle,  options);
 }
 
 template<typename Robot>
 // Move to a coordinate point using Odometry and PID
-void move_to(Robot& robot, double x, double y, bool reverse) {
-    turn_to(robot, x, y, reverse);
+void move_to(Robot& robot, double x, double y, bool reverse, Options move_options, Options turn_options) {
+    turn_to(robot, x, y, reverse, turn_options);
     double dist = dist_to(robot, x, y, reverse);
-    move_inches(robot, dist);
+    move_inches(robot, dist, move_options);
 }
 
 }

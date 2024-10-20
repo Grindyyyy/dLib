@@ -46,17 +46,22 @@ struct Options {
     double error_threshold;
     uint32_t settle_ms;
     uint32_t max_ms;
+    int max_voltage;
 
     Options with_error_threshold(double threshold) {
-        return { threshold, settle_ms, max_ms };
+        return { threshold, settle_ms, max_ms, max_voltage };
     }
     
     Options with_settle_ms(uint32_t time) {
-        return { error_threshold, time, max_ms };
+        return { error_threshold, time, max_ms, max_voltage };
     }
 
     Options with_max_ms(uint32_t time) {
-        return { error_threshold, settle_ms, time };
+        return { error_threshold, settle_ms, time, max_voltage };
+    }
+
+    Options with_max_voltage(int voltage) {
+        return { error_threshold, settle_ms, max_ms, voltage };
     }
 };
 
