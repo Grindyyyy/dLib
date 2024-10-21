@@ -13,23 +13,22 @@ struct Robot {
     );
 
     dlib::IMU imu = dlib::IMU(
-        15
+        4
     );
 
+    // Create a new PID for whatever you need!
     dlib::PID drive_pid = dlib::PID(
-        {},
+        // Adjust each gain for a more accurate PID.
+        {0,0,0},
         1
     );
 
     dlib::PID turn_pid = dlib::PID(
-        {},
+        {0,0,0},
         1
     );
 
-    dlib::Odom odom = dlib::Odom(
-        1,
-        1
-    );
+    dlib::Odom odom = dlib::Odom();
 
     dlib::Chassis& get_chassis() {
         return chassis;

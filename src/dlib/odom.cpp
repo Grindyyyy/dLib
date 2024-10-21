@@ -5,13 +5,7 @@
 namespace dlib {
 
 // Initializer class
-Odom::Odom(
-        double wheel_diameter,
-        double gear_ratio
-    ) :  
-        wheel_diameter(wheel_diameter), 
-        gear_ratio(gear_ratio) {
-};
+Odom::Odom(){};
 
 // Update global x, y, and theta
 void Odom::update(double current_forward, double current_theta) {

@@ -20,10 +20,7 @@ class Odom {
         Position position{};
         
     public:
-        Odom(
-            double wheel_diameter,
-            double gear_ratio
-        );
+        Odom();
 
         void update(double current_forward, double current_theta);
 
