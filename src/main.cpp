@@ -17,7 +17,7 @@ struct Robot {
     );
 
     dlib::IMU imu = dlib::IMU(
-        4
+        17
     );
 
     // Create a new PID for whatever you need!

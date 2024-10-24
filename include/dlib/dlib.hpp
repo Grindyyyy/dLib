@@ -165,7 +165,7 @@ double get_motor_inches(Robot& robot) {
 template<typename Robot>
 void update_odom(Robot& robot){
     while(true){
-        robot.get_odom().update(get_motor_inches(robot), get_imu_heading(robot) * (M_PI / 180.00)); 
+        robot.get_odom().update(get_motor_inches(robot), robot.get_imu().getCorrectedAngle() * (M_PI / 180.00)); 
         pros::delay(10);
     }
 }
