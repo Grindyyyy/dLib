@@ -95,6 +95,12 @@ double get_imu_heading(Robot& robot) {
 }
 
 template<typename Robot>
+double get_imu_heading_absolute(Robot& robot) {
+    double angle = robot.get_imu().imu.get_heading();
+    return angle;
+}
+
+template<typename Robot>
 double get_imu_rotation(Robot& robot) {
     return robot.get_imu().imu.get_rotation();
 }
