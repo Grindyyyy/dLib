@@ -36,6 +36,10 @@ void calibrate(Robot& robot){
 
 
     robot.get_imu().imu.reset(true);
+
+    robot.get_imu().calibrateDrift();
+    pros::Task imu_task = std::make_unique<pros::Task>([&] { robot.get_imu().main(); });
+
 }
 
 
@@ -182,7 +186,6 @@ void start_odom_update_loop(Robot& robot) {
         robot.get_odom().odom_started = true;
     }
 }
-
 
 template<typename Robot>
 void start_odom_update_loop_alt(Robot& robot) {
