@@ -4,6 +4,8 @@
 #include "pros/misc.h"
 #include <cstdio>
 
+// ** CLANGD IS RECOMMENDED ** //
+
 // Robot Constructor
 // Initialize your robot inside of this constructor!
 struct Robot {
@@ -85,6 +87,9 @@ void opcontrol() {
         double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         dlib::arcade(robot, power, turn);
         
+        pros::lcd::set_text(0, "x: " + std::to_string(position.x));
+        pros::lcd::set_text(1, "y: " + std::to_string(position.y));
+        pros::lcd::set_text(2, "theta: " + std::to_string(position.theta));
 
         pros::delay(20);
     }
