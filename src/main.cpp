@@ -1,15 +1,17 @@
 #include "main.h"
 #include "dlib/dlib.hpp"
+#include "liblvgl/llemu.hpp"
 #include "pros/misc.h"
+#include <cstdio>
 
 // Robot Constructor
 // Initialize your robot inside of this constructor!
 struct Robot {
     dlib::Chassis chassis = dlib::Chassis(
-		{1,2,3},
-    	{1,2,3},
-    	1,
-    	1
+		{-14,-4,-15},
+    	{18,12,13},
+    	3.25,
+    	450
     );
 
     dlib::IMU imu = dlib::IMU(
@@ -36,7 +38,7 @@ struct Robot {
 
     dlib::IMU& get_imu() {
         return imu;
-    }
+    } 
 
     dlib::PID& get_drive_pid() {
         return drive_pid;
@@ -44,7 +46,7 @@ struct Robot {
 
     dlib::PID& get_turn_pid() {
         return turn_pid;
-    }
+    } 
 
     dlib::Odom& get_odom() {
         return odom;
@@ -60,17 +62,17 @@ dlib::Position position = dlib::get_position(robot, false);
 // instantiate a Controller object
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 
-void initialize() {}
+void initialize() {
+    dlib::calibrate(robot);
+    pros::lcd::initialize();
+}
 
 void disabled() {}
 
 void competition_initialize() {}
 
 void autonomous() {
-    // Try some movements!
-    dlib::move_voltage(robot,127);
-    pros::delay(500);
-    dlib::brake_motors(robot);
+ // try some movements!
 }
 
 void opcontrol() {
@@ -82,11 +84,6 @@ void opcontrol() {
         double power = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         double turn = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         dlib::arcade(robot, power, turn);
-
-        // Update position on UI
-        pros::lcd::print(1, "X: %lf", position.x);
-        pros::lcd::print(2, "Y: %lf", position.y);
-        pros::lcd::print(3, "Theta: %lf", position.theta);
         
 
         pros::delay(20);
