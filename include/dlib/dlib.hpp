@@ -164,9 +164,18 @@ double get_motor_inches(Robot& robot) {
 
 template<typename Robot>
 void update_odom(Robot& robot){
+    int prevTime = pros::millis();
+    int millsDelay = 10;
     while(true){
+        // gets time when the loop starts
+        prevTime = pros::millis();
+
+        // runs odom function
         robot.get_odom().update(get_motor_inches(robot), robot.get_imu().getCorrectedAngle() * (M_PI / 180.00)); 
-        pros::delay(10);
+
+        // Makes sure the delay is exactly 10 ms bc calculations can take some time.
+        millsDelay = (prevTime + 10) - pros::millis();
+        pros::delay(millsDelay);
     }
 }
 
