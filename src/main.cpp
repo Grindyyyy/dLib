@@ -21,11 +21,13 @@ struct Robot {
     // Create a new PID for whatever you need!
     dlib::PID drive_pid = dlib::PID(
         // Adjust each gain for a more accurate PID.
+        // kp, ki, kd
         {0,0,0},
         1
     );
 
     dlib::PID turn_pid = dlib::PID(
+        // kp, ki, kd
         {0,0,0},
         1
     );
