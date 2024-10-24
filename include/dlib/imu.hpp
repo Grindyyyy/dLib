@@ -4,14 +4,16 @@
 namespace dlib {
 struct IMU {
     pros::Imu imu;
+    std::unique_ptr<pros::Task> imu_task;
+    double scalorMulx; //
 
-    IMU(std::int8_t imu_port)
-     : imu(imu_port) {};
+    IMU(std::int8_t imu_port, double scalar)
+     : imu(imu_port), scalorMulx(scalar) {};
 
     private:
         double driftRate = 0.0;
         double startAngle = 0.0;
-        double scalorMulx = 1.0; // might be spelled wrong x1 is default
+         // might be spelled wrong x1 is default
         double driftAccum = 0.0; // total drift acculmation over run
         double correctedAngle = 0.0; //drift + scale corrected angle
     

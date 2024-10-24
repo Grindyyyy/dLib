@@ -38,7 +38,7 @@ void calibrate(Robot& robot){
     robot.get_imu().imu.reset(true);
 
     robot.get_imu().calibrateDrift();
-    pros::Task imu_task = std::make_unique<pros::Task>([&] { robot.get_imu().main(); });
+    robot.get_imu().imu_task = std::make_unique<pros::Task>([&] { robot.get_imu().main(); });
 
 }
 
@@ -281,7 +281,7 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
             settle_start = pros::millis();
         }
 
-        double current_angle = robot.get_imu().imu.get_heading();
+        double current_angle = robot.get_imu().getCorrectedAngle();
         double error = std::remainder(target_angle - current_angle,360);
 
         if (is_settling) {
@@ -311,7 +311,7 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
 
     brake_motors(robot);
 
-    double current_angle = robot.get_imu().imu.get_heading();
+    double current_angle = robot.get_imu().getCorrectedAngle();
 
 }
 

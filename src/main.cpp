@@ -17,7 +17,9 @@ struct Robot {
     );
 
     dlib::IMU imu = dlib::IMU(
-        17
+        17,
+        // IMU return scalar
+        1.01107975
     );
 
     // Create a new PID for whatever you need!
@@ -69,6 +71,7 @@ pros::Controller master(pros::E_CONTROLLER_MASTER);
 void initialize() {
     dlib::calibrate(robot);
     pros::lcd::initialize();
+    dlib::start_odom_update_loop(robot);
 }
 
 void disabled() {}
