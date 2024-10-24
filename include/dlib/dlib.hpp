@@ -282,7 +282,7 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
         }
 
         double current_angle = robot.get_imu().getCorrectedAngle();
-        double error = std::remainder(target_angle - current_angle,360);
+        double error = target_angle - current_angle;
 
         if (is_settling) {
             if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
@@ -301,8 +301,6 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
         if(output_voltage > options.max_voltage){
             output_voltage = options.max_voltage;
         }
-
-        
 
         turn_voltage(robot, output_voltage);
 
