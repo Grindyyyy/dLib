@@ -2,6 +2,7 @@
 #include "dlib/chassis.hpp"
 #include "dlib/pid.hpp"
 #include "dlib/odom.hpp"
+#include "dlib/feedforward.hpp"
 #include "pros/motors.h"
 #include "dlib/imu.hpp"
 #include <concepts>

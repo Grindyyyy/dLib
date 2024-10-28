@@ -41,7 +41,7 @@ struct IMU {
                 driftAccum += driftRate;
 
                 // sets corrected angle with drift and scalor corrections. Note: accuracy is within 3 decimal places
-                correctedAngle = static_cast<int>((imu.get_rotation() - driftAccum + startAngle) * scalorMulx * 100) / 100.0;
+                correctedAngle = static_cast<int>((imu.get_rotation() - driftAccum + startAngle) * scalorMulx * 1000) / 1000.0;
 
                 // Makes sure the delay is exactly 10 ms bc calculations can take some time.
                 millsDelay = (prevTime + 10) - pros::millis();

@@ -36,6 +36,14 @@ struct Robot {
         1
     );
 
+    dlib::FeedForward drive_feed_forward = dlib::FeedForward(
+        {0,0,0}
+    );
+
+    dlib::FeedForward turn_feed_forward = dlib::FeedForward(
+        {0,0,0}
+    );
+
     dlib::Odom odom = dlib::Odom();
 
     dlib::Chassis& get_chassis() {
