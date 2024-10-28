@@ -8,6 +8,7 @@ class TrapMotionProfile {
 
         double maxAccel;
         double maxVelo;
+        double totalDistance;
 
         double totalTime;
 
