@@ -13,15 +13,15 @@ class TrapMotionProfile {
 
         double totalTime;
         
-        double accel_time = maxVelo/maxAccel;
-        double accel_distance = (0.5 * (maxAccel*(std::pow(accel_time,2))));
+        double accel_time;
+        double accel_distance;
 
-        double coast_distance = totalDistance - (0.5*std::pow(accel_time,2));
-        double coast_time = coast_distance / maxVelo;
+        double coast_distance;
+        double coast_time;
 
     public:
         // pass Max accel & Max velo for constructor
-        TrapMotionProfile(double maxAcceleration, double maxVelocity);
+        TrapMotionProfile(double maxAcceleration, double maxVelocity, double totalDistance);
 
         // trap Velocity profile
         double velocity_at(double curTime);

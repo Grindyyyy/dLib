@@ -5,37 +5,43 @@
 namespace dlib {
 
 // Construct a TrapMotionProfile controller (should be in inches)
-TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity) {
+TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity, double totalDistance) {
     maxAccel = maxAcceleration;
     maxVelo = maxVelocity;
 
+    // get the acceleration time
+    accel_time = maxVelo/maxAccel;
 
-    // determine if there can be a coasting section for the TrapMP
-    if ((accel_distance*2) > totalDistance) {
-        // no coast sector, so it has to figure out the max speed it can do
+    // set decel time to accelTime as they are the same
+    double decelTime = accel_time;
 
-        // calculate the max distance it can accelerate or decelerate
-        double accelMaxDistance = totalDistance/2.0;
+    // get the acceleration distance via x = 1/2at^2
+    accel_distance = (maxAcceleration * std::pow(accel_time, 2)) / 2;
 
-        // based on the equation sqrt(2x/a) = t derived from x = 1/2at^2
-        double accelMaxTime = std::sqrt(accelMaxDistance*2/maxAcceleration);
+    // sets the deceleration distance to accelDistance as they should be the same
+    double decelDistance = accel_distance;
 
-        // sets the total time to accelMaxTime*2 due to both portions.
-        totalTime = accelMaxTime*2;
+    // gets coast distance by totalx - (accelx + decelx)
+    coast_distance = totalDistance - accel_distance - decelDistance;
 
+    // if the coast distance is less than zero, find out max accel time
+    if (coast_distance < 0) {
+        
+        // find the accel time via the equation sqrt(2x/a) = t
+        accel_time = std::sqrt(totalDistance/maxAcceleration);
 
-    } else {
-        // Coast sector exists, calculate time with coast
+        // decel time will be the same as accel time
+        decelTime = accel_time;
 
-        // simplified would be (total_distance - accel portions)/maxVelocity
-        double coastSectorTime = (totalDistance-(accel_distance*2))/maxVelocity;
+        // no time for coasting if the coast distance is less than zero
+        coast_distance = 0;
+    } 
 
-        // gives the total predicted time for the movement
-        totalTime = accel_time*2 + coastSectorTime;
-    }
+    // sets coast_time by calculating the coastx/maxVelo
+    coast_time = coast_distance/maxVelocity;
 
-
-
+    // total time is just all sectors added together
+    totalTime = accel_time + decelTime + coast_time;
 }
 
 double TrapMotionProfile::velocity_at(double curTime){
