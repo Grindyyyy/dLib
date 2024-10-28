@@ -17,7 +17,7 @@ FeedForward::FeedForward(
     gains = real_gains;
 }
 
-double FeedForward::calculate(double target_velocity, double acceleration = 0){
+double FeedForward::calculate(double target_velocity, double acceleration){
 
     return( // in meters
         (std::copysign(gains.ks, target_velocity) + 
