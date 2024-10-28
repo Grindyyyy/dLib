@@ -265,6 +265,68 @@ void move_inches(Robot& robot, double inches, Options options) {
     brake_motors(robot);
 }
 
+template<typename Robot>
+void move_inches_ffwd(Robot& robot, double inches, Options options) {
+    long interval = robot.get_drive_pid().get_interval();
+
+    double starting_inches = get_motor_inches(robot);
+    double target_inches = starting_inches + inches;
+    robot.get_drive_pid().reset();
+
+    uint32_t starting_time = pros::millis();
+    
+    bool is_settling = false;
+    uint32_t settle_start = 0;
+    
+    while (true) {
+        
+        uint32_t current_time = pros::millis();
+
+        if (current_time - starting_time > options.max_ms) {
+            break;
+        }
+
+        if (!is_settling && std::abs(robot.get_drive_pid().get_error()) < options.error_threshold) {
+            is_settling = true;
+            settle_start = pros::millis();
+        }
+
+        if (is_settling) {
+            if (std::abs(robot.get_drive_pid().get_error()) < options.error_threshold) {
+                if(current_time - settle_start > options.settle_ms) {
+                    break;
+                }
+            } 
+            else {
+                is_settling = false;
+            }
+        }
+
+        double current_inches = get_motor_inches(robot);
+        double error = target_inches - current_inches;
+        double output_voltage = robot.get_drive_pid().update(error);
+
+        //ffwd calc
+        output_voltage += robot.get_drive_feed_forward().calculate(1.0); // placeholder number
+        
+        // output voltage stuff
+        if(std::abs(output_voltage) > options.max_voltage){
+            if(output_voltage > 0){
+                output_voltage = options.max_voltage;
+            }
+            else{
+                output_voltage = -options.max_voltage;
+            }
+        }
+
+        move_voltage(robot, output_voltage);
+
+        pros::delay(interval);
+    }
+
+    brake_motors(robot);
+}
+
 // Turn to a given absolute angle using PID
 template<typename Robot>
 void turn_degrees(Robot& robot, double angle, const Options options) {
@@ -307,9 +369,14 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
 
         double output_voltage = robot.get_turn_pid().update(error);
         
-        output_voltage += std::copysign(error, 2100);
-        if(output_voltage > options.max_voltage){
-            output_voltage = options.max_voltage;
+        // output voltage stuff
+        if(std::abs(output_voltage) > options.max_voltage){
+            if(output_voltage > 0){
+                output_voltage = options.max_voltage;
+            }
+            else{
+                output_voltage = -options.max_voltage;
+            }
         }
 
         turn_voltage(robot, output_voltage);
@@ -323,20 +390,19 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
 
 }
 
-
 // Turn to a given absolute angle using PID
 template<typename Robot>
-void turn_degrees_alt(Robot& robot, double angle, const Options options) {
+void turn_degrees_ffwd(Robot& robot, double angle, const Options options) {
    long interval = robot.get_turn_pid().get_interval();
 
-    double start_angle = dlib::get_imu_rotation(robot);
-    double target_angle = start_angle - std::fmod(start_angle, 360) + angle;
+    double target_angle = angle;
     robot.get_turn_pid().reset();
 
     uint32_t starting_time = pros::millis();
     
     bool is_settling = false;
     uint32_t settle_start = 0;
+
     while (true) {
         
         uint32_t current_time = pros::millis();
@@ -351,24 +417,33 @@ void turn_degrees_alt(Robot& robot, double angle, const Options options) {
             settle_start = pros::millis();
         }
 
+        double current_angle = robot.get_imu().getCorrectedAngle();
+        double error = target_angle - current_angle;
+
         if (is_settling) {
             if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
                 if(current_time - settle_start > options.settle_ms) {
                     break;
                 }
-            } else {
+            } 
+            else {
                 is_settling = false;
             }
         } 
 
-        double current_angle = dlib::get_imu_rotation(robot);
-        double error = std::remainder(target_angle - current_angle,360);
-
         double output_voltage = robot.get_turn_pid().update(error);
-        
-        output_voltage += std::copysign(error, 2100);
-        if(output_voltage > options.max_voltage){
-            output_voltage = options.max_voltage;
+
+        // ffwd calc
+        output_voltage += robot.get_turn_feed_forward().calculate(1.0); // placeholder number
+
+        // output voltage stuff
+        if(std::abs(output_voltage) > options.max_voltage){
+            if(output_voltage > 0){
+                output_voltage = options.max_voltage;
+            }
+            else{
+                output_voltage = -options.max_voltage;
+            }
         }
 
         turn_voltage(robot, output_voltage);
@@ -378,8 +453,9 @@ void turn_degrees_alt(Robot& robot, double angle, const Options options) {
 
     brake_motors(robot);
 
-    double current_angle = robot.get_imu().imu.get_heading();
+    double current_angle = robot.get_imu().getCorrectedAngle();
 }
+
 
 template<typename Robot>
 // Calculate the angle to turn from the current position to a point
