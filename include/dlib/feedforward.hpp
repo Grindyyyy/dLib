@@ -20,7 +20,7 @@ class FeedForward {
         FeedForward(FFGains gains_settings);
 
         //feedforward
-        double calculate(double velocity);
+        double calculate(double velocity, double acceleration = 0);
 
         FFGains get_gains();
         void set_gains(FFGains new_gains);
