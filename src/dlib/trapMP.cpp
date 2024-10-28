@@ -44,21 +44,26 @@ TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity,
     totalTime = accel_time + decelTime + coast_time;
 }
 
-Setpoint TrapMotionProfile::velocity_at(double curTime){
+Setpoint TrapMotionProfile::calculate(double curTime){
+    double const_1 = -maxVelo * accel_time + (maxAccel/2) * std::pow(accel_time,2);
+    double const_2 = -maxAccel * totalTime * (accel_time + coast_time) + (maxAccel / 2) * std::pow((accel_time + coast_time),2) + maxVelo * (accel_time + coast_time) + const_1;
+    
+
+
     // if before coasting
     if(curTime <= accel_time){
-        return Setpoint(setpoint.position,maxAccel * curTime); 
+        return Setpoint(maxAccel/2 * std::pow(curTime,2),maxAccel * curTime); 
     }
     // if during coasting
     else if(curTime <= accel_time + coast_time){
-        return Setpoint(setpoint.position,maxVelo);
+        return Setpoint(maxVelo * curTime + const_1,maxVelo);
     }
     // if after coasting
     else if(curTime <= accel_time*2 + coast_time){
-        return Setpoint(setpoint.position,maxAccel * (totalTime - curTime));
+        return Setpoint(maxAccel*totalTime*curTime - (maxAccel / 2) * std::pow(curTime,2) + const_2,maxAccel * (totalTime - curTime));
     }
     else{
-        return Setpoint(setpoint.position,0);
+        return Setpoint(0,0);
     }
 }
 
