@@ -38,21 +38,21 @@ TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity)
 
 }
 
-double TrapMotionProfile::velocity_at(double curTime){
+Setpoint TrapMotionProfile::velocity_at(double curTime){
     // if before coasting
     if(curTime <= accel_time){
-        return maxAccel * curTime;
+        return Setpoint(setpoint.position,maxAccel * curTime); 
     }
     // if during coasting
     else if(curTime <= accel_time + coast_time){
-        return maxVelo;
+        return Setpoint(setpoint.position,maxVelo);
     }
     // if after coasting
     else if(curTime <= accel_time*2 + coast_time){
-        return maxAccel * (totalTime - curTime);
+        return Setpoint(setpoint.position,maxAccel * (totalTime - curTime));
     }
     else{
-        return 0;
+        return Setpoint(setpoint.position,0);
     }
 }
 
