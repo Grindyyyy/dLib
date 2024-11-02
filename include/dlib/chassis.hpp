@@ -11,7 +11,11 @@ struct Chassis {
     Chassis(std::initializer_list<int8_t> left_ports,
             std::initializer_list<int8_t> right_ports,
             double wheel_diameter,
-            double rpm
+            double rpm,
+            double linMaxVelo,
+            double linMaxAccel,
+            double angMaxVelo,
+            double angMaxAccel
     ) : left(left_ports), right(right_ports), wheel_diameter(wheel_diameter), rpm(rpm) {};
 };
 }

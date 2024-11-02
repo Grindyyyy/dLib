@@ -2,12 +2,22 @@
 #include "dlib/chassis.hpp"
 #include "dlib/pid.hpp"
 #include "dlib/odom.hpp"
-#include "dlib/feedforward.hpp"
-#include "pros/motors.h"
 #include "dlib/imu.hpp"
+#include "dlib/trapMP.hpp"
+#include "feedforward.hpp"
+#include "pros/abstract_motor.hpp"
+#include "pros/motors.h"
+#include "pros/motors.hpp"
+#include <cmath>
 #include <concepts>
+#include <string>
+#include <vector>
 
 namespace dlib {
+
+// ------------------------------ //
+// Chassis
+// ------------------------------ //
 
 template<typename Robot>
 void set_mode_brake(Robot& robot){
@@ -44,9 +54,6 @@ void calibrate(Robot& robot){
 }
 
 
-   // robot.get_chassis().left.tare_position_all();
-   // robot.get_chassis().right.tare_position_all();
-
 template<typename Robot>
 void tare_position(Robot& robot){
     robot.get_chassis().left.tare_position();
@@ -75,8 +82,8 @@ void turn_voltage(Robot& robot, std::int32_t power) {
 // Drive using the arcade scheme
 template<typename Robot>
 void arcade(Robot& robot, std::int8_t power, std::int8_t turn) {
-        robot.get_chassis().left.move((power - turn));
-        robot.get_chassis().right.move(power + turn);
+    robot.get_chassis().left.move((power - turn));
+    robot.get_chassis().right.move(power + turn);
 }
 
 // Constrain the angle to -180 to 180 for efficient turns
@@ -265,6 +272,8 @@ void move_inches(Robot& robot, double inches, Options options) {
     brake_motors(robot);
 }
 
+
+// FIXED
 template<typename Robot>
 void move_inches_ffwd(Robot& robot, double inches, Options options) {
     long interval = robot.get_drive_pid().get_interval();
@@ -273,10 +282,13 @@ void move_inches_ffwd(Robot& robot, double inches, Options options) {
     double target_inches = starting_inches + inches;
     robot.get_drive_pid().reset();
 
+    TrapMotionProfile move_profile = TrapMotionProfile(robot.get_chassis().linMaxAccel,robot.get_chassis().linMaxVelo, inches);
+
     uint32_t starting_time = pros::millis();
     
     bool is_settling = false;
     uint32_t settle_start = 0;
+    double error;
     
     while (true) {
         
@@ -301,21 +313,33 @@ void move_inches_ffwd(Robot& robot, double inches, Options options) {
                 is_settling = false;
             }
         }
+        //ffwd calc
+        double cur_time = pros::millis();
+        double elapsed_time = (cur_time - starting_time);
+        Setpoint setpoint = move_profile.calculate(elapsed_time);
 
-        double current_inches = get_motor_inches(robot);
-        double error = target_inches - current_inches;
+        double elapsed_inches = get_motor_inches(robot) - starting_inches;
+        error = setpoint.position - elapsed_inches;
         double output_voltage = robot.get_drive_pid().update(error);
 
-        //ffwd calc
-        output_voltage += robot.get_drive_feed_forward().calculate(1.0); // placeholder number
+
         
-        // output voltage stuff
+
+        
+        
+
+        output_voltage += robot.get_drive_feed_forward().calculate(setpoint.velocity); // placeholder number
+        // ratios voltage limiter!
         if(std::abs(output_voltage) > options.max_voltage){
-            if(output_voltage > 0){
-                output_voltage = options.max_voltage;
+            if(output_voltage > 0) {
+                double ratio = output_voltage / options.max_voltage;
+
+                output_voltage = output_voltage/ratio;
             }
-            else{
-                output_voltage = -options.max_voltage;
+            else {
+                double ratio = output_voltage / -options.max_voltage;
+
+                output_voltage = output_voltage/ratio;
             }
         }
 
@@ -324,6 +348,7 @@ void move_inches_ffwd(Robot& robot, double inches, Options options) {
         pros::delay(interval);
     }
 
+    std::cout << error << std::endl;
     brake_motors(robot);
 }
 
@@ -339,6 +364,7 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
     
     bool is_settling = false;
     uint32_t settle_start = 0;
+    double error;
     while (true) {
         
         uint32_t current_time = pros::millis();
@@ -354,7 +380,7 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
         }
 
         double current_angle = robot.get_imu().getCorrectedAngle();
-        double error = target_angle - current_angle;
+        error = target_angle - current_angle;
 
         if (is_settling) {
             if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
@@ -386,17 +412,25 @@ void turn_degrees(Robot& robot, double angle, const Options options) {
 
     brake_motors(robot);
 
+    std::cout << error << std::endl;
+
     double current_angle = robot.get_imu().getCorrectedAngle();
 
 }
 
-// Turn to a given absolute angle using PID
+// FIXED
 template<typename Robot>
 void turn_degrees_ffwd(Robot& robot, double angle, const Options options) {
-   long interval = robot.get_turn_pid().get_interval();
-
+    
+    long interval = robot.get_turn_pid().get_interval();
+    double start_angle = robot.get_imu().getCorrectedAngle();
     double target_angle = angle;
+
+    double error = target_angle - start_angle;
+    
     robot.get_turn_pid().reset();
+
+    TrapMotionProfile turn_profile = TrapMotionProfile(robot.get_chassis().angMaxAccel,robot.get_chassis().angMaxVelo, error);
 
     uint32_t starting_time = pros::millis();
     
@@ -417,9 +451,6 @@ void turn_degrees_ffwd(Robot& robot, double angle, const Options options) {
             settle_start = pros::millis();
         }
 
-        double current_angle = robot.get_imu().getCorrectedAngle();
-        double error = target_angle - current_angle;
-
         if (is_settling) {
             if (std::abs(robot.get_turn_pid().get_error()) < options.error_threshold) {
                 if(current_time - settle_start > options.settle_ms) {
@@ -431,18 +462,28 @@ void turn_degrees_ffwd(Robot& robot, double angle, const Options options) {
             }
         } 
 
+        //ffwd calc
+        double cur_time = pros::millis();
+        double elapsed_time = (cur_time - starting_time);
+        Setpoint setpoint = turn_profile.calculate(elapsed_time);
+
+        double elapsed_angle = robot.get_imu().getCorrectedAngle() - start_angle;
+        error = setpoint.position - elapsed_angle;
         double output_voltage = robot.get_turn_pid().update(error);
 
-        // ffwd calc
-        output_voltage += robot.get_turn_feed_forward().calculate(1.0); // placeholder number
 
-        // output voltage stuff
+
+        // ratios voltage limiter!
         if(std::abs(output_voltage) > options.max_voltage){
-            if(output_voltage > 0){
-                output_voltage = options.max_voltage;
+            if(output_voltage > 0) {
+                double ratio = output_voltage / options.max_voltage;
+
+                output_voltage = output_voltage/ratio;
             }
-            else{
-                output_voltage = -options.max_voltage;
+            else {
+                double ratio = output_voltage / -options.max_voltage;
+
+                output_voltage = output_voltage/ratio;
             }
         }
 
@@ -526,11 +567,198 @@ void turn_to(Robot& robot, double x, double y, bool reverse, Options options){
 }
 
 template<typename Robot>
+// Turn to a coordinate point using Odometry and PID
+void turn_to_ffwd(Robot& robot, double x, double y, bool reverse, Options options){
+    double target_angle = angle_to(robot, x, y, reverse);
+    turn_degrees(robot, target_angle,  options);
+}
+
+template<typename Robot>
 // Move to a coordinate point using Odometry and PID
 void move_to(Robot& robot, double x, double y, bool reverse, Options move_options, Options turn_options) {
     turn_to(robot, x, y, reverse, turn_options);
     double dist = dist_to(robot, x, y, reverse);
-    move_inches(robot, dist, move_options);
+    move_inches_ffwd(robot, dist, move_options);
 }
 
+template<typename Robot>
+// Move to a coordinate point using Odometry and PID
+void move_to_ffwd(Robot& robot, double x, double y, bool reverse, Options move_options, Options turn_options) {
+    turn_to_ffwd(robot, x, y, reverse, turn_options);
+    double dist = dist_to(robot, x, y, reverse);
+    move_inches_ffwd(robot, dist, move_options);
+}
+
+
+
+// ------------------------------ //
+// Ring Sensor
+// ------------------------------ //
+
+template<typename Robot>
+pros::c::optical_rgb_s_t intake_get_rgb_values(Robot& robot){
+    return(robot.get_sensor().ring_sensor.get_rgb());
+}
+
+template<typename Robot>
+double intake_get_red(Robot& robot){
+    robot.get_sensor().ring_sensor_rgb_value = intake_get_rgb_values(robot);
+    return(robot.get_sensor().ring_sensor_rgb_value.red);
+}
+
+template<typename Robot>
+double intake_get_green(Robot& robot){
+    robot.get_sensor().ring_sensor_rgb_value = intake_get_rgb_values(robot);
+    return(robot.get_sensor().ring_sensor_rgb_value.green);
+}
+
+template<typename Robot>
+double intake_get_blue(Robot& robot){
+    robot.get_sensor().ring_sensor_rgb_value = intake_get_rgb_values(robot);
+    return(robot.get_sensor().ring_sensor_rgb_value.blue);
+}
+
+template<typename Robot>
+void intake_activate_led(Robot& robot, int power){
+    robot.get_sensor().ring_sensor.set_led_pwm(power);
+}
+
+// ------------------------------ //
+// Intake 
+// ------------------------------ //
+
+// intake calibrate
+template<typename Robot>
+void intake_calibrate(Robot& robot){
+    robot.get_intake().intake.set_encoder_units(pros::E_MOTOR_ENCODER_DEGREES);
+    
+    robot.get_intake().intake.tare_position();
+}
+
+// kinda experimental and maybe overthought
+template<typename Robot>
+void intake_filter_task(Robot& robot){
+    while(true){
+        robot.get_intake().intake_mutex.lock();  
+            if(robot.get_intake().is_red_alliance){
+                    if(intake_get_blue(robot) > intake_get_red(robot)*1.8){
+                        robot.get_intake().ring_detected = true;
+                        pros::delay(145);
+                        robot.get_intake().intake.move(-127);
+                        pros::delay(300);
+                    }
+                    else if(intake_get_red(robot) > intake_get_blue(robot) * 2 && robot.get_intake().lift_reverse == true){
+                        robot.get_intake().lift_ring_detected = true;
+                        robot.get_intake().intake.move(50);
+                        pros::delay(50);
+                        robot.get_intake().intake.move(-90);
+                        pros::delay(300);
+                    }
+                    else{
+                        robot.get_intake().ring_detected = false;
+                        robot.get_intake().lift_ring_detected = false;
+                        if(robot.get_intake().auto_intake_run){
+                        robot.get_intake().intake.move(127);
+                        }
+                        else{
+                        if(!robot.get_intake().driver_intake){
+                            robot.get_intake().intake.move(0);
+                        }
+                    }
+                    }
+                }
+            else if(robot.get_intake().is_blue_alliance){
+                if(intake_get_red(robot) > intake_get_blue(robot)*1.8){
+                        robot.get_intake().ring_detected = true;
+                        pros::delay(145);
+                        robot.get_intake().intake.move(-127);
+                        pros::delay(300);
+                    }
+                else if(intake_get_blue(robot) > intake_get_red(robot) * 2 && robot.get_intake().lift_reverse == true){
+                        robot.get_intake().lift_ring_detected = true;
+                        robot.get_intake().intake.move(50);
+                        pros::delay(50);
+                        robot.get_intake().intake.move(-90);
+                        pros::delay(300);
+                    }
+                else{
+                        robot.get_intake().ring_detected = false;
+                        robot.get_intake().lift_ring_detected = false;
+                        if(robot.get_intake().auto_intake_run){
+                        robot.get_intake().intake.move(127);
+                        }
+                        else{
+                        if(!robot.get_intake().driver_intake){
+                            robot.get_intake().intake.move(0);
+                        }
+                }
+                 }
+            }
+        pros::delay(10);   
+        robot.get_intake().intake_mutex.unlock();  
+    }
+}
+
+template<typename Robot>
+double get_intake_position(Robot& robot){
+    return(robot.get_intake().intake.get_position());
+}
+
+template<typename Robot>
+void start_intake_update_loop(Robot& robot) {
+    if(!robot.get_intake().intake_task_started) {
+        robot.get_intake().intake_updater = std::make_unique<pros::Task>([&] { intake_filter_task(robot); });
+        robot.get_intake().intake_task_started = true;
+    }
+}
+
+template<typename Robot>
+bool get_ring_detected(Robot& robot){
+    return(robot.get_intake().ring_detected);
+}
+
+template<typename Robot>
+double get_torque_intake(Robot& robot){
+    return robot.get_intake().intake.get_torque();
+}
+
+template<typename Robot>
+void intake_move(Robot& robot, int volts){
+    robot.get_intake().intake.move(volts);
+}
+
+template<typename Robot>
+void intake_move_torque(Robot& robot, int volts){
+    if(robot.get_intake.intake.get_torque() > 1){
+        robot.get_intake().intake.move(volts);
+    }
+}
+
+template<typename Robot>
+bool get_red_alliance(Robot& robot){
+    robot.get_intake().is_red_alliance = true;
+    robot.get_intake().is_blue_alliance = false;
+    return(robot.get_intake().is_red_alliance);
+}
+
+template<typename Robot>
+bool get_blue_alliance(Robot& robot){
+    robot.get_intake().is_blue_alliance = true;
+    robot.get_intake().is_red_alliance = false;
+    return(robot.get_intake().is_blue_alliance);
+}
+
+template<typename Robot>
+void intake_stop(Robot& robot){
+    robot.get_intake().intake.brake();
+}
+
+template<typename Robot>
+void auto_intake(Robot& robot, int volts, bool intake_run, bool lift_reverse){
+    if(!dlib::get_ring_detected(robot) && !robot.get_intake().lift_ring_detected){
+                robot.get_intake().auto_intake_run = intake_run;
+                robot.get_intake().lift_reverse = lift_reverse;
+                dlib::intake_move(robot,volts);
+            }
+}
 }

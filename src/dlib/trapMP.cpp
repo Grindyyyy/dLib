@@ -6,8 +6,15 @@ namespace dlib {
 
 // Construct a TrapMotionProfile controller (should be in inches)
 TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity, double totalDistance) {
-    maxAccel = maxAcceleration;
-    maxVelo = maxVelocity;
+
+    if (totalDistance < 0) {
+        maxAccel = -maxAcceleration;
+        maxVelo = -maxVelocity;
+    } else {
+        maxAccel = maxAcceleration;
+        maxVelo = maxVelocity;
+    }
+    
 
     // get the acceleration time
     accel_time = maxVelo/maxAccel;
@@ -16,7 +23,7 @@ TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity,
     double decelTime = accel_time;
 
     // get the acceleration distance via x = 1/2at^2
-    accel_distance = (maxAcceleration * std::pow(accel_time, 2)) / 2;
+    accel_distance = (maxAccel * std::pow(accel_time, 2)) / 2;
 
     // sets the deceleration distance to accelDistance as they should be the same
     double decelDistance = accel_distance;
@@ -28,7 +35,7 @@ TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity,
     if (coast_distance < 0) {
         
         // find the accel time via the equation sqrt(2x/a) = t
-        accel_time = std::sqrt(totalDistance/maxAcceleration);
+        accel_time = std::sqrt(totalDistance/maxAccel);
 
         // decel time will be the same as accel time
         decelTime = accel_time;
@@ -38,7 +45,7 @@ TrapMotionProfile::TrapMotionProfile(double maxAcceleration, double maxVelocity,
     } 
 
     // sets coast_time by calculating the coastx/maxVelo
-    coast_time = coast_distance/maxVelocity;
+    coast_time = coast_distance/maxVelo;
 
     // total time is just all sectors added together
     totalTime = accel_time + decelTime + coast_time;

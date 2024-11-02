@@ -24,8 +24,8 @@ class TrapMotionProfile {
         double accel_time;
         double accel_distance;
 
-        double coast_distance = totalDistance - (0.5*std::pow(accel_time,2));
-        double coast_time = coast_distance / maxVelo;
+        double coast_distance;
+        double coast_time;
 
         Setpoint setpoint = {0,0};
     public:
